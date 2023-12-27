@@ -1,7 +1,8 @@
+import 'dotenv/config'
 import express from "express";
 import bodyParser from "body-parser";
-import ejs from "ejs"
-import mongoose, { Schema } from 'mongoose'
+import mongoose, { Schema } from 'mongoose';
+import encrypt from "mongoose-encryption"
 
 const app = express();
 const port = 3000;
@@ -15,10 +16,12 @@ app.use(express.static("public"));
 mongoose.connect("mongodb://127.0.0.1:27017/userDB", {useNewUrlParser: true});
 
 //create user schema
-const userSchema = new Schema({
+const userSchema = new mongoose.Schema({
     email: String,
     password: String
 }) 
+
+userSchema.plugin(encrypt, { secret: process.env.SECRET_KEY , encryptedFields: ["password"]});
 
 //create model for the userSchema 
 const User = new mongoose.model("User", userSchema)
@@ -45,15 +48,16 @@ app.post("/register", async (req, res) => {
             email: req.body.username,
             password: req.body.password
         });
-        await newUser.save(); 
-        console.log(newUser); 
+        newUser.save().then(user=>{
+            console.log(user)
+        })
         res.render("secrets");
+        console.log(newUser)
     } catch (error) {
         console.log(error);
         res.status(500).send("Error registering user");
     }
 });
-
 
 // Login the user with their created account
 app.post("/login", async (req, res) => {
@@ -62,6 +66,7 @@ app.post("/login", async (req, res) => {
     
     try {
         const foundUser = await User.findOne({ email: username });
+        console.log(foundUser)
 
         if (foundUser) {
             if (foundUser.password === password) {
