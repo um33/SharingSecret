@@ -1,8 +1,8 @@
-import 'dotenv/config'
+
 import express from "express";
 import bodyParser from "body-parser";
 import mongoose, { Schema } from 'mongoose';
-import encrypt from "mongoose-encryption"
+import bcrypt from 'bcrypt'
 
 const app = express();
 const port = 3000;
@@ -21,7 +21,6 @@ const userSchema = new mongoose.Schema({
     password: String
 }) 
 
-userSchema.plugin(encrypt, { secret: process.env.SECRET_KEY , encryptedFields: ["password"]});
 
 //create model for the userSchema 
 const User = new mongoose.model("User", userSchema)
@@ -46,7 +45,7 @@ app.post("/register", async (req, res) => {
     try {
         const newUser = new User({
             email: req.body.username,
-            password: req.body.password
+            password: await bcrypt.hash(req.body.password, 10)
         });
         newUser.save().then(user=>{
             console.log(user)
@@ -62,18 +61,17 @@ app.post("/register", async (req, res) => {
 // Login the user with their created account
 app.post("/login", async (req, res) => {
     const username = req.body.username;
-    const password = req.body.password;
-    
+    const password = req.body.password
     try {
         const foundUser = await User.findOne({ email: username });
         console.log(foundUser)
 
         if (foundUser) {
-            if (foundUser.password === password) {
-                res.render("secrets");
-            } else {
-                res.send("Invalid password");
-            }
+            bcrypt.compare(password, foundUser.password).then(function(result) {
+                if(result == true){
+                    res.render("secrets")
+                }
+            });
         } else {
             res.send("User not found");
         }
